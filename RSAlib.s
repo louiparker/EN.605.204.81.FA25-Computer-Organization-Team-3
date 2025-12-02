@@ -13,11 +13,112 @@
 
 
 #
-# Function: pow
-# Author: Thomson Toms
+# Function Name: pow
+# Author:       Thomson Toms
+# Date:         12/2/2025
+# Purpose:      Compute (base^exp) mod n using repeated multiplication.
+#
+# Inputs:
+#    r0 = base
+#    r1 = exponent
+#    r2 = modulus
+#
+# Output:
+#    r0 = (base^exp) mod modulus
 #
 
+.global pow
+pow:
+    # Reserve stack space for r4, r5, r6, r7, lr (20 bytes)
+    SUB sp, sp, #20
+    STR lr, [sp]         // save return address
+    STR r4, [sp, #4]
+    STR r5, [sp, #8]
+    STR r6, [sp, #12]
+    STR r7, [sp, #16]
 
+    MOV r4, r2           // r4 = modulus n
+    MOV r7, r1           // r7 = exponent (loop counter)
+    MOV r5, #1           // r5 = result = 1
+
+    # Reduce base = base % n
+    MOV r6, r0           // r6 = base
+    MOV r1, r4           // r1 = modulus
+    MOV r0, r6           
+    BL modulo            // r0 = base % n
+    MOV r6, r0           // r6 = base (reduced)
+
+pow_loop:
+    # If exponent == 0, we are done
+    CMP r7, #0
+    BEQ pow_done
+
+    # result = (result * base) % n
+    MUL r0, r5, r6       // r0 = result * base
+    MOV r1, r4           // r1 = modulus n
+    BL modulo            // r0 = (result * base) % n
+    MOV r5, r0           // result = r0
+
+    # exponent = exponent - 1
+    SUB r7, r7, #1
+
+    B pow_loop
+
+pow_done:
+    MOV r0, r5           // return result in r0
+
+    # Restore registers
+    LDR lr, [sp]
+    LDR r4, [sp, #4]
+    LDR r5, [sp, #8]
+    LDR r6, [sp, #12]
+    LDR r7, [sp, #16]
+    ADD sp, sp, #20
+
+    MOV pc, lr
+// END OF pow
+	
+#
+# Function: encrypt
+# Author:       Thomson Toms
+# Date:         12/2/2025
+# Purpose:  c = m^e mod n
+# Inputs:   r0=m, r1=e, r2=n
+# Output:   r0=c
+#
+
+.global encrypt
+encrypt:
+    SUB sp, sp, #4
+    STR lr, [sp]
+
+    BL pow              // r0 = (m^e) mod n
+
+    LDR lr, [sp]
+    ADD sp, sp, #4
+    MOV pc, lr
+
+// END OF encrypt
+#
+# Function: decrypt
+# Author:       Thomson Toms
+# Date:         12/2/2025
+# Purpose:  m = c^d mod n
+# Inputs:   r0=c, r1=d, r2=n
+# Output:   r0=m
+#
+.global decrypt
+decrypt:
+    SUB sp, sp, #4
+    STR lr, [sp]
+
+    BL pow              // r0 = (c^d) mod n
+
+    LDR lr, [sp]
+    ADD sp, sp, #4
+    MOV pc, lr
+	
+// END OF decrypt
 
 #
 # Function: cpubexp
@@ -258,27 +359,6 @@ priv_done:
     ADD sp, sp, #16
     MOV pc, lr
 // END OF cprivexp
-
-// Draft encrypt: m^e mod n (use team's pow)
-// Inputs: r0=m, r1=e, r2=n
-// Outputs: r0=c
-.global encrypt
-encrypt:
-    // Placeholder: BL pow (m,e) → r0 = m^e
-    // Then BL modulo(r0, n)
-    MOV pc, lr  // Stub
-// END OF encrypt
-
-// Draft decrypt: c^d mod n
-// Inputs: r0=c, r1=d, r2=n
-// Outputs: r0=m
-.global decrypt
-decrypt:
-    // Similar stub
-    MOV pc, lr
-// END OF decrypt
-
-
 
 .data
 
