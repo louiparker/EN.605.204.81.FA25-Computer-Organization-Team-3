@@ -240,9 +240,9 @@ do_decrypt:
 
 decrypt_loop:
     @ read one ciphertext integer: fscanf(enc, "%d", &cipher_temp)
-    ldr r0, =fmt_cipher
-    ldr r1, =cipher_temp
-    mov r2, r8
+    mov r0, r8               @ r0 = FILE *stream (encrypted.txt)
+    ldr r1, =fmt_cipher      @ r1 = format string "%d "
+    ldr r2, =cipher_temp     @ r2 = &cipher_temp
     bl fscanf
 
     @ stop if fscanf did not read 1 integer
@@ -257,9 +257,10 @@ decrypt_loop:
     bl decrypt          @ returns plaintext char in r0
 
     @ write plaintext char to file
-    mov r0, r9
-    ldr r1, =fmt_char
-    mov r2, r0
+    mov r3, r0          @ save decrypted char in r3
+    mov r0, r9          @ r0 = FILE *stream (plaintext.txt)
+    ldr r1, =fmt_char   @ r1 = format string "%c"
+    mov r2, r3          @ r2 = decrypted char
     bl fprintf
 
     b decrypt_loop
