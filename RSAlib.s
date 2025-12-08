@@ -1,17 +1,13 @@
-// 
+//
 // Program Name: RSAlib.s
 // Date:  11/19/2025
-// 
+//
 
 .text
 
 #
 # Function: gcd & modulo
 # Author: Ching Yi Cho
-#
-
-
-
 #
 # Function Name: pow
 # Author:       Thomson Toms
@@ -26,6 +22,56 @@
 # Output:
 #    r0 = (base^exp) mod modulus
 #
+
+.global gcd
+.global pow
+.global encrypt
+.global decrypt
+.global cpubexp
+.global extended_gcd
+.global modulo
+.global cprivexp
+
+.global gcd
+gcd:
+    # Function dictionary:
+    # r4 - first value
+    # r5 - second value
+    # r6 - GCD
+
+    # push the stack record
+    SUB sp, sp, #16
+    STR lr, [sp, #0]
+    STR r4, [sp, #8]
+    STR r5, [sp, #12]
+
+findGCD:
+    # Call modulo: remainder returned in r0
+    MOV r0, r4
+    MOV r1, r5
+    BL modulo
+
+    MOV r7, r0          @ <-- IMPORTANT FIX (remainder into r7)
+
+    # If remainder == 0, gcd = r5
+    CMP r7, #0
+    BEQ Return
+
+    # Otherwise repeat: r4 = r5, r5 = r7
+    MOV r4, r5
+    MOV r5, r7
+    B findGCD
+
+Return:
+    MOV r6, r5          @ store GCD
+    MOV r0, r6          @ return gcd in r0
+
+    # pop the stack record
+    LDR lr, [sp, #0]
+    LDR r4, [sp, #8]
+    LDR r5, [sp, #12]
+    ADD sp, sp, #16
+    MOV pc, lr
 
 .global pow
 pow:
@@ -44,7 +90,7 @@ pow:
     # Reduce base = base % n
     MOV r6, r0           // r6 = base
     MOV r1, r4           // r1 = modulus
-    MOV r0, r6           
+    MOV r0, r6
     BL modulo            // r0 = base % n
     MOV r6, r0           // r6 = base (reduced)
 
@@ -77,7 +123,7 @@ pow_done:
 
     MOV pc, lr
 // END OF pow
-	
+
 #
 # Function: encrypt
 # Author:       Thomson Toms
@@ -117,7 +163,7 @@ decrypt:
     LDR lr, [sp]
     ADD sp, sp, #4
     MOV pc, lr
-	
+
 // END OF decrypt
 
 #
@@ -125,63 +171,63 @@ decrypt:
 # Author: Parker Loui
 # Purpose: calculate and validate public key exponent e
 # Requirements:
-#	e must be positive integer
-#	1 < e < phi(n)
-#	gcd( e, phi(n) = 1 ( e and phi(n) are coprime)
+#       e must be positive integer
+#       1 < e < phi(n)
+#       gcd( e, phi(n) = 1 ( e and phi(n) are coprime)
 # Input: r0 = phi(n) (Euler's totient function result), r1 = e (public exponent)
 # Output: r0 = 1 if e is valid, 0 if e is invalid
 #
 
 cpubexp:
-	# push stack
-	SUB sp, sp, #12
-	STR r4, [sp, #0]
-	STR r5, [sp, #4]
-	STR lr, [sp, #8]
+        # push stack
+        SUB sp, sp, #12
+        STR r4, [sp, #0]
+        STR r5, [sp, #4]
+        STR lr, [sp, #8]
 
-	# r4 = phi(n)
-	MOV r4, r0
+        # r4 = phi(n)
+        MOV r4, r0
 
-	# r5 = e (proposed exponent)
-	MOV r5, r1
+        # r5 = e (proposed exponent)
+        MOV r5, r1
 
-	# e must be positive
-	CMP r5, #0
-	BLE invalid_e
+        # e must be positive
+        CMP r5, #0
+        BLE invalid_e
 
-	# e > 1
-	CMP r5, #1
-	BLE invalid_e
+        # e > 1
+        CMP r5, #1
+        BLE invalid_e
 
-	# e < phi(n)
-	CMP r5, r4
-	BGE invalid_e
+        # e < phi(n)
+        CMP r5, r4
+        BGE invalid_e
 
-	# gcd( e, phi(n)) must = 1, no common factors (coprime)
-	MOV r0, r5
-	MOV r1, r4
-	BL gcd
+        # gcd( e, phi(n)) must = 1, no common factors (coprime)
+        MOV r0, r5
+        MOV r1, r4
+        BL gcd
 
-	# check if gcd is 1
-	CMP r0, #1
-	BNE invalid_e
+        # check if gcd is 1
+        CMP r0, #1
+        BNE invalid_e
 
-	# all requirement satisfied
-	MOV r0, #1
-	B end_cpubexp
+        # all requirement satisfied
+        MOV r0, #1
+        B end_cpubexp
 
 
 invalid_e:
-	# return false
-	MOV r0, #0
+        # return false
+        MOV r0, #0
 
 end_cpubexp:
-	# pop stack for cpubexp
-	LDR r4, [sp, #0]
-	LDR r5, [sp, #4]
-	LDR lr, [sp, #8]
-	ADD sp, sp, #12
-	MOV pc, lr
+        # pop stack for cpubexp
+        LDR r4, [sp, #0]
+        LDR r5, [sp, #4]
+        LDR lr, [sp, #8]
+        ADD sp, sp, #12
+        MOV pc, lr
 
 // Function: cprivexp
 // Author: Jiashu Hu
@@ -360,6 +406,65 @@ priv_done:
     MOV pc, lr
 // END OF cprivexp
 
+    @ Function: PrimeCheck
+    @ Shannon Cho
+    @ Purpose:  Test if n is prime (1 = prime, 0 = not prime)
+    @ Inputs:   r0 = n
+    @ Output:   r0 = 1 if prime, 0 otherwise
+
+    .global PrimeCheck
+PrimeCheck:
+
+    @ Program dictionary (same idea as Shannon's):
+    @   r4 - value to be checked (n)
+    @   r5 - loop counter / divisor
+
+    @ push the stack record
+    SUB sp, sp, #16
+    STR lr, [sp, #0]
+    STR r4, [sp, #8]
+    STR r5, [sp, #12]
+
+    @ move input n from r0 into r4 (so the rest matches Shannon)
+    MOV r4, r0
+
+    @ initialize
+    MOV r5, #2
+
+    @ start division of all numbers less than entered value
+findPrime:
+    @ check end conditions
+    CMP r4, #2
+    BLT isnotPrime         @ n < 2 -> not prime
+
+    CMP r5, r4
+    BGE isPrime            @ if divisor == n -> no divisor found -> prime
+
+    MOV r0, r4             @ dividend = n
+    MOV r1, r5             @ divisor = r5
+    BL  __aeabi_idiv       @ r0 = n / r5
+    MUL r2, r0, r5         @ r2 = (n / r5) * r5  (use temp register)
+    CMP r2, r4             @ compare product to n
+    BEQ isnotPrime         @ if exact division, not prime
+
+
+    @ increase counter
+    ADD r5, r5, #1
+    B findPrime
+
+isPrime:
+    MOV r0, #1             @ return 1 for prime
+    B END
+
+isnotPrime:
+    MOV r0, #0             @ return 0 for not prime
+
+END:
+    LDR lr, [sp, #0]
+    LDR r4, [sp, #4]
+    LDR r5, [sp, #8]
+    ADD sp, sp, #16
+    MOV pc, lr
+
+
 .data
-
-
