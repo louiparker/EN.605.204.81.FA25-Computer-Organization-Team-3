@@ -461,8 +461,8 @@ isnotPrime:
 
 END:
     LDR lr, [sp, #0]
-    LDR r4, [sp, #4]
-    LDR r5, [sp, #8]
+    LDR r4, [sp, #8]
+    LDR r5, [sp, #12]
     ADD sp, sp, #16
     MOV pc, lr
 
